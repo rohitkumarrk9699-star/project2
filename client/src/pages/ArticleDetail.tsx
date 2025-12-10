@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { fetchArticleByIdFromAPI } from "@/lib/api";
 import { Loader2, ArrowLeft, Clock, ExternalLink, Calendar, User, AlertCircle } from "lucide-react";
@@ -11,14 +11,20 @@ import { formatDistanceToNow, format } from "date-fns";
 
 export default function ArticleDetail() {
   const [match, params] = useRoute("/article/:id");
+  const [, setLocation] = useLocation();
   const id = params?.id;
 
   const { data: article, isLoading, error } = useQuery({
     queryKey: ["article", id],
     queryFn: () => fetchArticleByIdFromAPI(id || ""),
     enabled: !!id,
-    retry: 2,
+    retry: 1,
+    staleTime: 300000, // 5 minutes
   });
+
+  const goBack = () => {
+    setLocation("/");
+  };
 
   if (isLoading) {
     return (
@@ -44,9 +50,7 @@ export default function ArticleDetail() {
               The article you are looking for does not exist or has been removed.
             </AlertDescription>
           </Alert>
-          <Link href="/">
-            <Button>Return to Home</Button>
-          </Link>
+          <Button onClick={goBack}>Return to Home</Button>
         </div>
       </div>
     );
@@ -58,11 +62,16 @@ export default function ArticleDetail() {
       
       <main className="flex-grow">
         {/* Hero Section */}
-        <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
+        <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
           <div className="absolute inset-0 bg-black/40 z-10" />
           <img 
             src={article.imageUrl} 
             alt={article.title}
+            loading="eager"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&h=600&fit=crop`;
+            }}
             className="w-full h-full object-cover"
           />
           <div className="absolute bottom-0 left-0 w-full z-20 p-4 md:p-8 bg-gradient-to-t from-black/80 to-transparent">
@@ -100,16 +109,12 @@ export default function ArticleDetail() {
             </div>
             
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/">
-                  <a className="flex items-center gap-2">
-                    <ArrowLeft className="w-4 h-4" /> Back to News
-                  </a>
-                </Link>
+              <Button variant="outline" size="sm" onClick={goBack}>
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to News
               </Button>
               <Button size="sm" asChild>
-                <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                  Visit Source <ExternalLink className="w-4 h-4" />
+                <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer">
+                  Visit Source <ExternalLink className="w-4 h-4 ml-2" />
                 </a>
               </Button>
             </div>

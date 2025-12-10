@@ -109,6 +109,43 @@ const NEWS_SOURCES: Record<Category, NewsSource[]> = {
   ]
 };
 
+// In-memory cache for articles
+let articlesCache: Article[] = [];
+let lastScrapeTime: number = 0;
+
+// Get cached articles
+export function getCachedArticles(): Article[] {
+  return articlesCache;
+}
+
+// Get article by ID from cache
+export function getArticleById(id: string): Article | undefined {
+  return articlesCache.find(a => a.id === id);
+}
+
+// Check if cache has articles
+export function hasCachedArticles(): boolean {
+  return articlesCache.length > 0;
+}
+
+// Clear the cache (for manual refresh)
+export function clearCache(): void {
+  articlesCache = [];
+  lastScrapeTime = 0;
+}
+
+// Escape HTML entities to prevent XSS
+function escapeHtml(text: string): string {
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, char => htmlEntities[char] || char);
+}
+
 async function scrapeSource(source: NewsSource, category: Category, limit: number = 10): Promise<Article[]> {
   try {
     const response = await axios.get(source.url, {
@@ -155,10 +192,13 @@ async function scrapeSource(source: NewsSource, category: Category, limit: numbe
 
       seenTitles.add(title);
 
+      // Escape title for safe HTML rendering
+      const safeTitle = escapeHtml(title);
+
       articles.push({
         id: `art-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        title: title,
-        content: generateContent(title, category),
+        title: title, // Keep raw for display
+        content: generateContent(safeTitle, category),
         imageUrl: imageUrl || getPlaceholderImage(category),
         source: source.name,
         sourceUrl: link,
@@ -174,9 +214,9 @@ async function scrapeSource(source: NewsSource, category: Category, limit: numbe
   }
 }
 
-function generateContent(title: string, category: Category): string {
+function generateContent(safeTitle: string, category: Category): string {
   return `
-    <p class="mb-4"><strong>${category} Update:</strong> ${title}</p>
+    <p class="mb-4"><strong>${escapeHtml(category)} Update:</strong> ${safeTitle}</p>
     
     <p class="mb-4">In a significant development, new information has emerged regarding this ongoing story. Sources indicate that the situation continues to evolve, with experts closely monitoring the developments.</p>
     
@@ -209,12 +249,13 @@ function getPlaceholderImage(category: Category): string {
   return placeholders[category];
 }
 
+// Scrape articles and store in cache
 export async function scrapeArticles(category?: Category, articlesPerSource: number = 10): Promise<Article[]> {
   const categoriesToScrape: Category[] = category 
     ? [category] 
     : ["International", "Sports", "Technology", "Health", "Science"];
 
-  const allArticles: Article[] = [];
+  const newArticles: Article[] = [];
 
   for (const cat of categoriesToScrape) {
     const sources = NEWS_SOURCES[cat];
@@ -225,13 +266,21 @@ export async function scrapeArticles(category?: Category, articlesPerSource: num
     
     results.forEach(result => {
       if (result.status === 'fulfilled') {
-        allArticles.push(...result.value);
+        newArticles.push(...result.value);
       }
     });
   }
 
   // Sort by timestamp (newest first)
-  return allArticles.sort((a, b) => 
+  const sortedArticles = newArticles.sort((a, b) => 
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
+
+  // Store in cache
+  articlesCache = sortedArticles;
+  lastScrapeTime = Date.now();
+  
+  console.log(`Scraped ${sortedArticles.length} articles at ${new Date().toISOString()}`);
+  
+  return sortedArticles;
 }

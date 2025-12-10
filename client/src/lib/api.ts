@@ -25,3 +25,15 @@ export async function fetchArticleByIdFromAPI(id: string): Promise<Article> {
   
   return response.json();
 }
+
+export async function triggerScrape(): Promise<{ success: boolean; message: string; count: number }> {
+  const response = await fetch(`${API_BASE}/scrape`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to trigger scrape: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
