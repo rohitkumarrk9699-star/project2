@@ -18,7 +18,9 @@ export default function Home() {
   const { data: articles, isLoading, error, refetch } = useQuery({
     queryKey: ["articles", category],
     queryFn: () => fetchArticlesFromAPI(category),
-    staleTime: 300000, // 5 minutes
+    staleTime: 0, // Always fresh - no caching
+    refetchOnMount: true, // Always refetch on mount
+    refetchOnWindowFocus: true, // Refetch when user returns to window
     retry: 2,
   });
 

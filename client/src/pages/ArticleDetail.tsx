@@ -1,26 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Header } from "@/components/Header";
-import { fetchArticleByIdFromAPI } from "@/lib/api";
-import { Loader2, ArrowLeft, Clock, ExternalLink, Calendar, User, AlertCircle } from "lucide-react";
+import { fetchArticlesFromAPI } from "@/lib/api";
+import { Loader2, ArrowLeft, Clock, ExternalLink, Calendar, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDistanceToNow, format } from "date-fns";
+import React from "react";
 
 export default function ArticleDetail() {
   const [match, params] = useRoute("/article/:id");
   const [, setLocation] = useLocation();
   const id = params?.id;
+  const [foundArticle, setFoundArticle] = React.useState<any>(null);
 
-  const { data: article, isLoading, error } = useQuery({
-    queryKey: ["article", id],
-    queryFn: () => fetchArticleByIdFromAPI(id || ""),
-    enabled: !!id,
+  // Fetch all articles from the category to find the specific one
+  // This is needed since we scrape fresh on every request
+  const { data: allArticles, isLoading } = useQuery({
+    queryKey: ["articles", "all"],
+    queryFn: () => fetchArticlesFromAPI(),
+    staleTime: 0,
     retry: 1,
-    staleTime: 300000, // 5 minutes
   });
+
+  React.useEffect(() => {
+    if (allArticles && id) {
+      const article = allArticles.find((a: any) => a.id === id);
+      if (article) {
+        setFoundArticle(article);
+      }
+    }
+  }, [allArticles, id]);
 
   const goBack = () => {
     setLocation("/");
@@ -38,7 +50,7 @@ export default function ArticleDetail() {
     );
   }
 
-  if (error || !article) {
+  if (!foundArticle) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
@@ -55,6 +67,8 @@ export default function ArticleDetail() {
       </div>
     );
   }
+
+  const article = foundArticle;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -95,8 +109,9 @@ export default function ArticleDetail() {
           <div className="flex flex-col md:flex-row gap-8 mb-8 border-b pb-8">
             <div className="flex-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                <span className="font-medium text-foreground">{article.source}</span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                  {article.sourceName || article.source}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -106,17 +121,24 @@ export default function ArticleDetail() {
                 <Clock className="w-4 h-4" />
                 <span>{formatDistanceToNow(new Date(article.timestamp), { addSuffix: true })}</span>
               </div>
+              {article.readTime && (
+                <div className="flex items-center gap-2 text-primary font-semibold">
+                  {article.readTime}
+                </div>
+              )}
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <Button variant="outline" size="sm" onClick={goBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to News
               </Button>
-              <Button size="sm" asChild>
-                <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  Visit Source <ExternalLink className="w-4 h-4 ml-2" />
-                </a>
-              </Button>
+              {article.sourceUrl && (
+                <Button size="sm" asChild className="bg-primary hover:bg-primary/90">
+                  <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer">
+                    Read Original Source <ExternalLink className="w-4 h-4 ml-2" />
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -127,6 +149,17 @@ export default function ArticleDetail() {
             className="prose prose-lg md:prose-xl dark:prose-invert max-w-none font-serif leading-relaxed text-foreground/90"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
+
+          {article.tags && article.tags.length > 0 && (
+            <div className="mt-8 pt-8 border-t">
+              <h3 className="text-sm font-semibold mb-3 text-muted-foreground">TAGS</h3>
+              <div className="flex flex-wrap gap-2">
+                {article.tags.map((tag: string, idx: number) => (
+                  <Badge key={idx} variant="outline">{tag}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
       </main>
 

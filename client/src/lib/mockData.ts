@@ -33,12 +33,17 @@ export type Category = "International" | "Sports" | "Technology" | "Health" | "S
 export interface Article {
   id: string;
   title: string;
+  summary: string;
   content: string;
   imageUrl: string;
   source: string;
+  sourceName: string;
   sourceUrl: string;
   category: Category;
   timestamp: string;
+  readTime: string;
+  author: string;
+  tags: string[];
 }
 
 const CATEGORIES: Category[] = ["International", "Sports", "Technology", "Health", "Science"];
@@ -175,6 +180,7 @@ export function generateArticles(countPerCategory: number = 20): Article[] {
       articles.push({
         id: `art-${idCounter++}`,
         title: uniqueTitle,
+        summary: uniqueTitle.substring(0, 150),
         content: `
           <p class="mb-4"><strong>${category} Update:</strong> In a significant development that has captured the attention of experts and the public alike, new details have emerged regarding the ongoing situation.</p>
           
@@ -198,9 +204,13 @@ export function generateArticles(countPerCategory: number = 20): Article[] {
         `,
         imageUrl: image,
         source: SOURCES[Math.floor(Math.random() * SOURCES.length)],
-        sourceUrl: "https://example.com", // Placeholder for external link
+        sourceName: SOURCES[Math.floor(Math.random() * SOURCES.length)],
+        sourceUrl: "https://example.com",
         category: category,
-        timestamp: subHours(new Date(), Math.floor(Math.random() * 48)).toISOString()
+        timestamp: subHours(new Date(), Math.floor(Math.random() * 48)).toISOString(),
+        readTime: `${Math.floor(Math.random() * 5) + 3} min read`,
+        author: SOURCES[Math.floor(Math.random() * SOURCES.length)],
+        tags: [category, ...uniqueTitle.split(' ').filter(w => w.length > 4).slice(0, 2)]
       });
     }
   });
