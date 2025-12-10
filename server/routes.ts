@@ -20,7 +20,7 @@ export async function registerRoutes(
   });
 
   // MANUAL SCRAPE TRIGGER - Only endpoint that initiates scraping
-  app.post("/api/trigger-scrape", async (req, res) => {
+  app.get("/api/trigger-scrape", async (req, res) => {
     try {
       console.log("[API] Manual scrape triggered via /api/trigger-scrape");
       clearCache();
@@ -192,6 +192,50 @@ export async function registerRoutes(
       console.error("Error fetching articles:", error);
       res.status(500).json({ error: "Failed to fetch articles" });
     }
+  });
+
+  // Small convenience page so users can trigger a manual scrape from a browser
+  // Visit /trigger in your browser to run the GET /api/trigger-scrape and see the JSON result.
+  app.get("/trigger", async (req, res) => {
+    res.type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Trigger Scrape</title>
+    <style>body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;padding:24px;background:#f7fafc;color:#111}button{padding:10px 14px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer}pre{white-space:pre-wrap;background:#fff;border:1px solid #e5e7eb;padding:12px;border-radius:6px;max-height:60vh;overflow:auto}</style>
+  </head>
+  <body>
+    <h1>Trigger Scrape</h1>
+    <p>Click the button below to trigger a manual scrape. The JSON response will be shown below.</p>
+    <button id="btn">Trigger Scrape</button>
+    <p id="status"></p>
+    <pre id="output">Waiting...</pre>
+    <script>
+      const btn = document.getElementById('btn');
+      const out = document.getElementById('output');
+      const status = document.getElementById('status');
+      btn.addEventListener('click', async () => {
+        status.textContent = 'Running...';
+        out.textContent = '';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/trigger-scrape', { method: 'GET' });
+          const text = await res.text();
+          // try to pretty-print JSON, otherwise show as text
+          try { const json = JSON.parse(text); out.textContent = JSON.stringify(json, null, 2); } catch(e) { out.textContent = text; }
+          status.textContent = 'Status: ' + res.status;
+        } catch (err) {
+          out.textContent = String(err);
+          status.textContent = 'Error';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
+`);
   });
 
   return httpServer;
