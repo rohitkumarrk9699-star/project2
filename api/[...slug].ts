@@ -1,5 +1,4 @@
 import type { IncomingMessage } from 'http';
-import type { NowRequest, NowResponse } from '@vercel/node';
 import {
   scrapeArticles,
   getCachedArticles,
